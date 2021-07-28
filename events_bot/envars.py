@@ -25,11 +25,6 @@ Path to .db file with sqlite database
 db_path = _get_env_var("DB")
 
 """
-Default parse mode for messages
-"""
-messages_parse_mode = _get_env_var("PARSEMODE", "MARKDOWN")
-
-"""
 Admin users telegram ids separated by :
 """
 admin_users = [int(x) for x in _get_env_var("ADMIN_USERS", "").split(':') if x != ""]
