@@ -10,6 +10,8 @@ class DataObject:
 
     def __init__(self, table, obj):
         self._connection = sqlite3.connect(envars.db_path)
+        self._connection.row_factory = sqlite3.Row
+
         self._table = table
         self._has_changes = False
         self._id = ""
