@@ -74,6 +74,24 @@ class Event(DataObject):
     def description(self, value):
         self._description = value
 
+    @property
+    def available_places(self):
+        if self.id == "":
+            return self.max_members
+
+        import data.tickets as tickets
+
+        cursor = self._connection.cursor()
+        for row in cursor.execute(
+            f"SELECT sum({tickets.DB_MEMBERS}) AS members FROM {tickets.DB_TABLE} WHERE {tickets.DB_EVENT} = :event",
+            {"event": self.id}
+        ):
+            result = self.max_members - row["members"]
+            if result < 0:
+                return 0
+            return result
+        return self.max_members
+
     def write(self):
         super(Event, self).write({
             DB_NAME: self._name,
