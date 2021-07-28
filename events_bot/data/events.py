@@ -83,7 +83,7 @@ class Event(DataObject):
 
         cursor = self._connection.cursor()
         for row in cursor.execute(
-            f"SELECT sum({tickets.DB_MEMBERS}) AS members FROM {tickets.DB_TABLE} WHERE {tickets.DB_EVENT} = :event",
+            f"SELECT IFNULL(sum({tickets.DB_MEMBERS}), 0) AS members FROM {tickets.DB_TABLE} WHERE {tickets.DB_EVENT} = :event",
             {"event": self.id}
         ):
             result = self.max_members - row["members"]
