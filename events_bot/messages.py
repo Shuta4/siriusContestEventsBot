@@ -1,3 +1,7 @@
+
+dt_format = "%d.%m.%Y %H:%M"
+
+
 def enter_help():
     return f"Введите /help для получения информации."
 
@@ -50,7 +54,7 @@ def events_list(events):
         else:
             available_places = f"мест: {event['available_places']}/{event['max_members']}"
 
-        result += f"`{datetime.fromtimestamp(event['datetime'])}`: " \
+        result += f"`{datetime.fromtimestamp(event['datetime']).strftime(dt_format)}`: " \
                   f"*{event['name']}*: " \
                   f"{event['location']}: " \
                   f"{available_places}\n"
@@ -86,17 +90,21 @@ def edit_event_start():
     return event_action_start("редактирования")
 
 
-def enter_event_description(action):
+def enter_event_description(action, old_description=""):
     return f"Мероприятие {action}.\n" \
-           f"Теперь введите описание мероприятия."
+           f"Теперь введите описание мероприятия." \
+           f"{old_description}"
 
 
 def enter_new_event_description():
     return enter_event_description("создано")
 
 
-def enter_edited_event_description():
-    return enter_event_description("изменено (старое описание было удалено)")
+def enter_edited_event_description(description):
+    return enter_event_description(
+        "изменено (старое описание было удалено)",
+        f"\nСтарое описание: ```\n{description}```"
+    )
 
 
 def description_saved():
@@ -122,7 +130,7 @@ def full_event_information(event):
     else:
         max_members = str(event.max_members)
 
-    return f"*{event.name}* {event.datetime}\n" \
+    return f"*{event.name}* {event.datetime.strftime(dt_format)}\n" \
            f"Место проведения: {event.location}\n" \
            f"Максимальное кол-во участников: {max_members}\n" \
            f"{event.description}"
@@ -147,4 +155,12 @@ def no_tickets():
 
 def ticket_caption(ticket):
     event = ticket.event
-    return f"{event.datetime} {event.name}: {ticket.members} мест"
+    return f"{event.datetime.strftime(dt_format)} {event.name}: {ticket.members} мест"
+
+
+def members_must_be_int():
+    return f"Количество мест должно задаваться целым числом."
+
+
+def too_many_members(max_members):
+    return f"Указано слишком большое кол-во участников, максимальное: {max_members}"
