@@ -379,7 +379,7 @@ def text_handler(message, user):
         _event = ticket.event
         _available_places = _event.available_places
         if _event.max_members != 0 and \
-                _available_places < _event.max_members:
+                _available_places < _members:
             bot.reply_to(message, messages.too_many_members(_available_places))
             return
 
