@@ -9,7 +9,7 @@ from data.events import Events, Event
 from data.tickets import Ticket, Tickets
 
 
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s::%(levelname)s::%(message)s", datefmt="%Y-%m-%dT%H:%M:%S")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s::%(levelname)s::%(message)s", datefmt="%Y-%m-%dT%H:%M:%S")
 
 logging.debug("Starting bot")
 
@@ -60,7 +60,7 @@ logging.debug("Set permissions level for admin users.")
 # Create Telegram Bot
 
 logging.debug("Creating bot...")
-bot = telebot.TeleBot(envars.bot_token, parse_mode=envars.messages_parse_mode)
+bot = telebot.TeleBot(envars.bot_token, parse_mode="MARKDOWN")
 logging.debug("Bot created.")
 
 # Set handlers
@@ -114,6 +114,7 @@ def handlers_wrapper(permissions_level=PermissionsLevels.USER):
                 user.write()
 
                 logging.debug(f"Created user with tgId '{telegram_user_id}' and id '{user.id}'.")
+                logging.info(f"New user with telegram_id = '{telegram_user_id}'")
 
             if user.permissions_level < permissions_level:
                 logging.debug(f"No permissions for action '{func.__name__}' by user '{telegram_user_id}'.")
@@ -139,7 +140,7 @@ def _get_events_keyboard(events):
     keyboard = telebot.types.InlineKeyboardMarkup(row_width=1)
     for event in events:
         keyboard.add(telebot.types.InlineKeyboardButton(
-            text=f"{datetime.fromtimestamp(event['datetime'])}: {event['name']}",
+            text=f"{datetime.fromtimestamp(event['datetime']).strftime(messages.dt_format)}: {event['name']}",
             callback_data=event['id']
         ))
 
@@ -168,7 +169,8 @@ def get_tickets(message, user):
 
     for ticket in tickets:
         keyboard.add(telebot.types.InlineKeyboardButton(
-            text=f"{datetime.fromtimestamp(ticket['datetime'])} {ticket['name']}: {ticket['members']} мест",
+            text=f"{datetime.fromtimestamp(ticket['datetime']).strftime(messages.dt_format)} "
+                 f"{ticket['name']}: {ticket['members']} мест",
             callback_data=ticket['id']
         ))
 
@@ -299,14 +301,14 @@ def query_handler(callback_query):
 @bot.message_handler(content_types=['text'])
 @handlers_wrapper(permissions_level=PermissionsLevels.ADMIN)
 def text_handler(message, user):
-    def event_from_message(event_id=""):
+    def event_from_message(_event):
         lines = message.text.split('\n')
 
         if len(lines) < 2:
             raise ValueError("Necessary params name and datetime is not defined.")
 
         _name = lines[0]
-        _datetime = datetime.strptime(lines[1], '%d.%m.%Y %H:%M')
+        _datetime = datetime.strptime(lines[1], messages.dt_format)
         _location = ""
         _max_members = 0
 
@@ -315,11 +317,6 @@ def text_handler(message, user):
 
         if len(lines) > 3:
             _max_members = int(lines[3])
-
-        if event_id == "":
-            _event = Event()
-        else:
-            _event = Event(Events.get(event_id))
 
         _event.name = _name
         _event.datetime = _datetime
@@ -330,21 +327,30 @@ def text_handler(message, user):
         _event.write()
         return _event
 
-    if user.action == ActionTypes.IDLE:
-        bot.reply_to(message, messages.not_recognized())
+    if user.action == ActionTypes.ENTER_NEW_EVENT_PARAMS or \
+            user.action == ActionTypes.ENTER_EVENT_PARAMS:
 
-    elif user.action == ActionTypes.ENTER_NEW_EVENT_PARAMS:
+        if user.action == ActionTypes.ENTER_EVENT_PARAMS:
+            event = Events.get(user.action_data)
+        else:
+            event = Event()
+
+        _old_description = event.description
+
         try:
-            event = event_from_message()
-        except ValueError as e:
+            event = event_from_message(event)
+        except ValueError:
             bot.reply_to(message, messages.not_recognized())
             return
+
+        if user.action == ActionTypes.ENTER_EVENT_PARAMS:
+            bot.reply_to(message, messages.enter_edited_event_description(_old_description))
+        else:
+            bot.reply_to(message, messages.enter_new_event_description())
 
         user.action = ActionTypes.ENTER_EVENT_DESCRIPTION
         user.action_data = event.id
         user.write()
-
-        bot.reply_to(message, messages.enter_new_event_description())
 
     elif user.action == ActionTypes.ENTER_EVENT_DESCRIPTION:
 
@@ -359,13 +365,31 @@ def text_handler(message, user):
 
     elif user.action == ActionTypes.ENTER_TICKET_MEMBERS:
 
+        try:
+            _members = int(message.text)
+        except Exception as err:
+            logging.debug(f"Incorrect members input: {err}")
+            bot.reply_to(message, messages.members_must_be_int())
+            return
+
         ticket = Ticket()
         ticket.user = user
         ticket.event = user.action_data
-        ticket.members = int(message.text)
+
+        _event = ticket.event
+        _available_places = _event.available_places
+        if _event.max_members != 0 and \
+                _available_places < _event.max_members:
+            bot.reply_to(message, messages.too_many_members(_available_places))
+            return
+
+        ticket.members = _members
         ticket.write()
 
+        send_qrcode(message.chat.id, user, ticket)
 
+    else:
+        bot.reply_to(message, messages.not_recognized())
 
 
 @bot.message_handler(func=lambda message: True, content_types=['audio', 'photo', 'voice', 'video', 'document',
