@@ -40,7 +40,6 @@ class ActionTypes:
     ENTER_TICKET_MEMBERS = "ENTER_TICKET_MEMBERS"
 
 
-
 class User(DataObject):
 
     def __init__(self, row=None):
