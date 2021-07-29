@@ -277,6 +277,8 @@ def query_handler(callback_query):
                 )
             elif callback_query.data == "edit":
                 if user.permissions_level < PermissionsLevels.ADMIN:
+                    user.action = ActionTypes.IDLE
+                    user.write()
                     bot.send_message(callback_query.message.chat.id, messages.no_permissions())
                     return
 
@@ -299,7 +301,7 @@ def query_handler(callback_query):
 
 
 @bot.message_handler(content_types=['text'])
-@handlers_wrapper(permissions_level=PermissionsLevels.ADMIN)
+@handlers_wrapper(permissions_level=PermissionsLevels.USER)
 def text_handler(message, user):
     def event_from_message(_event):
         lines = message.text.split('\n')
@@ -330,6 +332,12 @@ def text_handler(message, user):
     if user.action == ActionTypes.ENTER_NEW_EVENT_PARAMS or \
             user.action == ActionTypes.ENTER_EVENT_PARAMS:
 
+        if user.permissions_level < PermissionsLevels.ADMIN:
+            user.action = ActionTypes.IDLE
+            user.write()
+            bot.reply_to(message, messages.no_permissions())
+            return
+
         if user.action == ActionTypes.ENTER_EVENT_PARAMS:
             event = Events.get(user.action_data)
         else:
@@ -353,6 +361,12 @@ def text_handler(message, user):
         user.write()
 
     elif user.action == ActionTypes.ENTER_EVENT_DESCRIPTION:
+
+        if user.permissions_level < PermissionsLevels.ADMIN:
+            user.action = ActionTypes.IDLE
+            user.write()
+            bot.reply_to(message, messages.no_permissions())
+            return
 
         event = Events.get(user.action_data)
         event.description = message.text
