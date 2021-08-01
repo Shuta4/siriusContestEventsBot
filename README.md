@@ -4,8 +4,6 @@ Sirius Contest Events Bot
 Telegram-бот, который может записывать пользователей на мероприятия,
 проходящие на [Федеральной территории Сириус](https://sirius-ft.ru/).
 
-Мой бот: [@s4_siriusContestEventsBot](https://t.me/s4_siriusContestEventsBot)
-
 Возможности
 -----------
 - Создание и редактирование мероприятий через telegram-бота
